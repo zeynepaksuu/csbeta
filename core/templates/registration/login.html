@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Giriş{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex items-center justify-center p-4">
+  <form method="post" class="card w-full max-w-sm space-y-4">
+    {% csrf_token %}
+    <div class="flex items-center gap-3 mb-2">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">AF</div>
+      <div>
+        <div class="font-bold tracking-tight">Agent Flow</div>
+        <div class="text-xs text-slate-400">Devam etmek için giriş yap</div>
+      </div>
+    </div>
+    {% if form.errors %}
+      <div class="text-xs text-rose-400">Kullanıcı adı veya şifre hatalı.</div>
+    {% endif %}
+    <div>
+      <label class="block text-xs font-medium text-slate-300 mb-1" for="id_username">Kullanıcı adı</label>
+      <input id="id_username" name="username" class="input" autofocus required value="{{ form.username.value|default:'' }}">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-300 mb-1" for="id_password">Şifre</label>
+      <input id="id_password" name="password" type="password" class="input" required>
+    </div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn-primary w-full">Giriş yap</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: agent_flow
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agent_flow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    container_name: agent_centrifugo
+    restart: unless-stopped
+    volumes:
+      - ./centrifugo.json:/centrifugo/config.json
+    command: centrifugo -c /centrifugo/config.json
+    ports:
+      - "8000:8000"
+
+  api:
+    build: .
+    container_name: agent_api
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8080"
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/agent_flow
+      CENTRIFUGO_API_URL: http://centrifugo:8000/api
+      CENTRIFUGO_API_KEY: centrifugo_api_key
+      CENTRIFUGO_WS_URL: ws://localhost:8000/connection/websocket
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      centrifugo:
+        condition: service_started
+
+  worker:
+    build: .
+    container_name: agent_worker
+    restart: unless-stopped
+    command: python manage.py procrastinate worker --queues agents
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/agent_flow
+      CENTRIFUGO_API_URL: http://centrifugo:8000/api
+      CENTRIFUGO_API_KEY: centrifugo_api_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      centrifugo:
+        condition: service_started
+
+volumes:
+  pgdata:

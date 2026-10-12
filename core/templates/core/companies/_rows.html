@@ -1,0 +1,32 @@
+{% for company in companies %}
+<tr class="hover:bg-slate-800/40">
+  <td class="py-3 px-3">
+    <a href="{% url 'core:company_detail' company.pk %}" class="font-medium text-slate-100 hover:text-blue-300">{{ company.name }}</a>
+    {% if company.website %}<div class="text-[11px] text-slate-500">{{ company.website }}</div>{% endif %}
+  </td>
+  <td class="py-3 px-3 text-slate-300">{{ company.sector|default:"—" }}</td>
+  <td class="py-3 px-3 text-xs text-slate-400">
+    {{ company.email|default:"" }}{% if company.email and company.phone %}<br>{% endif %}{{ company.phone|default:"" }}
+    {% if not company.email and not company.phone %}—{% endif %}
+  </td>
+  <td class="py-3 px-3 text-slate-300">{{ company.task_total }}</td>
+  <td class="py-3 px-3">
+    {% if company.is_active %}<span class="badge badge-completed">Aktif</span>{% else %}<span class="badge badge-muted">Pasif</span>{% endif %}
+  </td>
+  <td class="py-3 px-3">
+    <div class="flex items-center justify-end gap-1.5">
+      <a href="{% url 'core:chat' %}?company={{ company.pk }}" class="btn">Sor</a>
+      <button class="btn" hx-get="{% url 'core:company_edit' company.pk %}" hx-target="#modal">Düzenle</button>
+      <button class="btn-danger" hx-post="{% url 'core:company_delete' company.pk %}"
+              hx-confirm="{{ company.name }} silinsin mi? Bu firmaya ait sorular firmasız kalır."
+              hx-target="closest tr" hx-swap="outerHTML">Sil</button>
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="6" class="py-10 text-center text-sm text-slate-500">
+    {% if query %}"{{ query }}" ile eşleşen firma yok.{% else %}Henüz firma eklenmedi.{% endif %}
+  </td>
+</tr>
+{% endfor %}

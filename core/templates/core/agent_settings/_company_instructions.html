@@ -1,0 +1,21 @@
+{% if company %}
+<form class="space-y-2 rounded-lg border border-border bg-slate-900/50 p-3"
+      hx-post="{% url 'core:agent_settings_company' %}" hx-target="#company-instructions"
+      hx-disabled-elt="find button[type=submit]">
+  <input type="hidden" name="preview_company" value="{{ company.pk }}">
+  <div class="flex items-center justify-between">
+    <label for="company-system-prompt" class="text-xs font-medium text-slate-300">{{ company.name }} talimatları</label>
+    <a href="{% url 'core:company_detail' company.pk %}" class="text-[11px] text-blue-400 hover:text-blue-300">Firma sayfası &rarr;</a>
+  </div>
+  <textarea id="company-system-prompt" name="system_prompt" rows="5" class="input font-mono text-xs"
+            placeholder="Sadece bu firmaya özel talimatlar, örn. Firma sahibi Engin.">{{ form.system_prompt.value|default:"" }}</textarea>
+  <div class="flex items-center justify-between">
+    <span class="text-[11px] text-slate-500">Sadece bu firmaya gider, system prompt'un sonuna eklenir.</span>
+    <button type="submit" class="btn">Kaydet</button>
+  </div>
+</form>
+{% else %}
+<div class="text-[11px] text-slate-500 rounded-lg border border-border bg-slate-900/50 p-3">
+  Firma seçilmedi; sadece system prompt gider. Firma seçersen o firmanın talimatlarını burada düzenleyebilirsin.
+</div>
+{% endif %}

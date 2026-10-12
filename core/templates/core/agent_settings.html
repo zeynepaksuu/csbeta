@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Agent ayarları{% endblock %}
+{% block page_title %}Agent ayarları{% endblock %}
+{% block page_subtitle %}Agent'a giden system prompt'u buradan düzenle{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <div class="lg:col-span-7">
+    {% include "core/agent_settings/_form.html" %}
+  </div>
+
+  <div class="lg:col-span-5">
+    <div class="card lg:sticky lg:top-24">
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <h2 class="card-title">Önizleme</h2>
+        <select id="preview-company" name="preview_company" class="input !w-auto !py-1 text-xs"
+                hx-get="{% url 'core:agent_settings_company' %}" hx-trigger="change" hx-target="#company-instructions">
+          <option value="">Firma seçilmeden</option>
+          {% for company in companies %}
+            <option value="{{ company.pk }}" {% if selected == company.pk|stringformat:"d" or not selected and forloop.first %}selected{% endif %}>{{ company.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="company-instructions" class="mb-4" hx-disinherit="*"
+           hx-get="{% url 'core:agent_settings_company' %}" hx-trigger="load" hx-include="#preview-company">
+      </div>
+      <div id="preview"
+           hx-post="{% url 'core:agent_settings_preview' %}"
+           hx-trigger="load, input from:body delay:400ms, previewRefresh from:body"
+           hx-include="#settings-form, #preview-company, #company-system-prompt">
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">Kaydetmeden önce, yazdıkça agent'a gidecek prompt'un son hali.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

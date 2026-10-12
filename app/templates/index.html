@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/centrifuge@5.7.4/dist/centrifuge.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: '#3b82f6',
+            surface: '#0f172a',
+            panel: '#1e293b',
+            border: '#334155'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface text-slate-100 min-h-screen font-sans antialiased">
+  <header class="border-b border-border bg-panel/70 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
+        AF
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">Agent Flow</h1>
+        <p class="text-xs text-slate-400">Claude Agent SDK &bull; Procrastinate &bull; Centrifugo &bull; PostgreSQL</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 bg-slate-900/60 border border-border px-3 py-1.5 rounded-full text-xs">
+        <span id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <span id="conn-status" class="text-slate-300 font-medium">Connecting</span>
+      </div>
+      <button onclick="refreshJobs()" class="bg-slate-800 hover:bg-slate-700 border border-border text-slate-200 text-xs px-3 py-1.5 rounded-md transition-colors">
+        Refresh Jobs
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="lg:col-span-4 space-y-6">
+      <div class="bg-panel border border-border rounded-xl p-5 shadow-sm">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">Submit Task</h2>
+        
+        <form id="task-form" class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Task Type</label>
+            <select id="task-type" class="w-full bg-slate-900 border border-border rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+              <option value="general">General Analysis</option>
+              <option value="math">Arithmetic Calculator</option>
+              <option value="stats">PostgreSQL Database Inspection</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Prompt / Input</label>
+            <textarea id="task-prompt" rows="4" class="w-full bg-slate-900 border border-border rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Enter task instructions..."></textarea>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="setPreset('math', 'Calculate 1450 * 3.5 + (8900 / 25)')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-border">
+              Math Tool
+            </button>
+            <button type="button" onclick="setPreset('stats', 'Fetch PostgreSQL task results and job queue stats')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-border">
+              DB Tool
+            </button>
+            <button type="button" onclick="setPreset('general', 'Summarize architecture of async worker with real-time websocket feed')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-border">
+              General
+            </button>
+          </div>
+
+          <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm py-2.5 rounded-lg shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2">
+            <span>Dispatch to Procrastinate</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="active-card" class="bg-panel border border-border rounded-xl p-5 shadow-sm hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Task</span>
+          <span id="active-status" class="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-slate-800 text-slate-300"></span>
+        </div>
+        <div class="text-xs text-slate-400 mb-1">ID: <span id="active-id" class="text-slate-200 font-mono"></span></div>
+        <div class="text-xs text-slate-400 mb-3">Prompt: <span id="active-prompt" class="text-slate-300"></span></div>
+        
+        <div class="border-t border-border pt-3">
+          <div class="text-xs text-slate-400 mb-1 font-semibold">Result Output:</div>
+          <pre id="active-result" class="text-xs text-emerald-400 bg-slate-900 border border-border rounded p-3 overflow-x-auto whitespace-pre-wrap min-h-[60px]">Waiting for completion...</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-8 space-y-6">
+      <div class="bg-panel border border-border rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Centrifugo Realtime Event Stream</h2>
+          <span class="text-xs text-slate-500 font-mono">Channel: public:stream</span>
+        </div>
+        <div id="events-log" class="bg-slate-900 border border-border rounded-lg p-3 h-64 overflow-y-auto space-y-2 font-mono text-xs">
+          <div class="text-slate-500 text-center py-6">No events received yet. Submit a task to observe stream.</div>
+        </div>
+      </div>
+
+      <div class="bg-panel border border-border rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">PostgreSQL Procrastinate Jobs Table</h2>
+          <span class="text-xs text-slate-500 font-mono">Table: procrastinate_jobs</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-border text-slate-400">
+                <th class="py-2 px-3">Job ID</th>
+                <th class="py-2 px-3">Status</th>
+                <th class="py-2 px-3">Queue</th>
+                <th class="py-2 px-3">Task Name</th>
+                <th class="py-2 px-3">Attempts</th>
+                <th class="py-2 px-3">Args</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody" class="divide-y divide-border text-slate-300">
+              <tr>
+                <td colspan="6" class="py-4 text-center text-slate-500">Loading jobs from database...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const wsUrl = "{{ centrifugo_ws_url }}";
+    const centrifuge = new Centrifuge(wsUrl);
+
+    const connDot = document.getElementById("conn-dot");
+    const connStatus = document.getElementById("conn-status");
+    const eventsLog = document.getElementById("events-log");
+
+    centrifuge.on("connecting", function() {
+      connDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+      connStatus.textContent = "Connecting";
+    });
+
+    centrifuge.on("connected", function() {
+      connDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+      connStatus.textContent = "Connected";
+      appendLog("System", { status: "Centrifugo WebSocket connected successfully" });
+    });
+
+    centrifuge.on("disconnected", function() {
+      connDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+      connStatus.textContent = "Disconnected";
+    });
+
+    const publicSub = centrifuge.newSubscription("public:stream");
+    publicSub.on("publication", function(ctx) {
+      appendLog(ctx.data.event, ctx.data.payload);
+      refreshJobs();
+    });
+    publicSub.subscribe();
+
+    centrifuge.connect();
+
+    function appendLog(event, data) {
+      if (eventsLog.children.length === 1 && eventsLog.children[0].classList.contains("text-center")) {
+        eventsLog.innerHTML = "";
+      }
+      const entry = document.createElement("div");
+      entry.className = "p-2 rounded bg-slate-950/60 border border-slate-800 text-[11px] leading-relaxed";
+      const time = new Date().toLocaleTimeString();
+      entry.innerHTML = `<span class="text-slate-500">[${time}]</span> <span class="text-blue-400 font-semibold">&lt;${escapeHtml(event)}&gt;</span> <span class="text-slate-300">${escapeHtml(JSON.stringify(data))}</span>`;
+      eventsLog.prepend(entry);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[ch]));
+    }
+
+    function setPreset(type, prompt) {
+      document.getElementById("task-type").value = type;
+      document.getElementById("task-prompt").value = prompt;
+    }
+
+    let currentTaskSub = null;
+
+    document.getElementById("task-form").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const prompt = document.getElementById("task-prompt").value.trim();
+      const taskType = document.getElementById("task-type").value;
+      if (!prompt) return;
+
+      const submitBtn = document.getElementById("submit-btn");
+      submitBtn.disabled = true;
+      submitBtn.classList.add("opacity-60");
+
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: prompt, task_type: taskType })
+        });
+        const data = await res.json();
+        
+        document.getElementById("active-card").classList.remove("hidden");
+        document.getElementById("active-id").textContent = data.task_id;
+        document.getElementById("active-prompt").textContent = prompt;
+        document.getElementById("active-status").textContent = data.status;
+        document.getElementById("active-status").className = "px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-amber-900/50 text-amber-300 border border-amber-700/50";
+        document.getElementById("active-result").textContent = "Processing...";
+
+        if (currentTaskSub) {
+          currentTaskSub.unsubscribe();
+        }
+
+        currentTaskSub = centrifuge.newSubscription("tasks:" + data.task_id);
+        currentTaskSub.on("publication", function(ctx) {
+          const payload = ctx.data.payload;
+          if (ctx.data.event === "task_status") {
+            const status = payload.status;
+            document.getElementById("active-status").textContent = status;
+            if (status === "completed") {
+              document.getElementById("active-status").className = "px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-emerald-900/50 text-emerald-300 border border-emerald-700/50";
+              document.getElementById("active-result").textContent = payload.result;
+            } else if (status === "failed") {
+              document.getElementById("active-status").className = "px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-rose-900/50 text-rose-300 border border-rose-700/50";
+              document.getElementById("active-result").textContent = payload.error;
+            }
+          } else if (ctx.data.event === "agent_completed") {
+            document.getElementById("active-result").textContent = payload.result;
+          }
+        });
+        currentTaskSub.subscribe();
+
+        setTimeout(refreshJobs, 600);
+      } catch (err) {
+        alert("Error dispatching task: " + err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("opacity-60");
+      }
+    });
+
+    async function refreshJobs() {
+      try {
+        const res = await fetch("/api/jobs");
+        const data = await res.json();
+        const tbody = document.getElementById("jobs-tbody");
+        if (!data.jobs || data.jobs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-500">No jobs found in procrastinate_jobs.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = data.jobs.map(job => {
+          let badgeColor = "bg-slate-800 text-slate-300";
+          if (job.status === "succeeded") badgeColor = "bg-emerald-900/40 text-emerald-400 border border-emerald-800/50";
+          if (job.status === "doing") badgeColor = "bg-blue-900/40 text-blue-400 border border-blue-800/50";
+          if (job.status === "todo") badgeColor = "bg-amber-900/40 text-amber-400 border border-amber-800/50";
+          if (job.status === "failed") badgeColor = "bg-rose-900/40 text-rose-400 border border-rose-800/50";
+
+          return `
+            <tr class="hover:bg-slate-800/40 font-mono text-[11px]">
+              <td class="py-2.5 px-3 text-slate-400 font-bold">#${job.id}</td>
+              <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded ${badgeColor} font-semibold">${job.status}</span></td>
+              <td class="py-2.5 px-3 text-slate-400">${job.queue_name}</td>
+              <td class="py-2.5 px-3 text-blue-300">${job.task_name}</td>
+              <td class="py-2.5 px-3 text-slate-400">${job.attempts}</td>
+              <td class="py-2.5 px-3 text-slate-400 truncate max-w-[200px]">${escapeHtml(JSON.stringify(job.args))}</td>
+            </tr>
+          `;
+        }).join("");
+      } catch (err) {
+        console.error("Failed to load jobs", err);
+      }
+    }
+
+    refreshJobs();
+    setInterval(refreshJobs, 5000);
+  </script>
+</body>
+</html>

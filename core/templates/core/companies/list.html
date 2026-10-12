@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Firmalar{% endblock %}
+{% block page_title %}Firmalar{% endblock %}
+{% block page_subtitle %}Agent'ın hakkında konuşabileceği firmalar{% endblock %}
+{% block header_actions %}
+  <button class="btn-primary !text-xs !py-1.5" hx-get="{% url 'core:company_create' %}" hx-target="#modal">+ Yeni firma</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="flex items-center gap-3 mb-4">
+    <input id="search" type="search" name="q" value="{{ query }}" placeholder="Firma, sektör veya e-posta ara..."
+           class="input max-w-sm"
+           hx-get="{% url 'core:company_list' %}" hx-trigger="input changed delay:300ms, search"
+           hx-target="#company-rows" hx-indicator="#search-spinner">
+    <span id="search-spinner" class="htmx-indicator text-xs text-slate-500">Aranıyor...</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm border-collapse">
+      <thead>
+        <tr class="border-b border-border text-xs text-slate-400">
+          <th class="py-2 px-3">Firma</th>
+          <th class="py-2 px-3">Sektör</th>
+          <th class="py-2 px-3">İletişim</th>
+          <th class="py-2 px-3">Soru</th>
+          <th class="py-2 px-3">Durum</th>
+          <th class="py-2 px-3 text-right">İşlemler</th>
+        </tr>
+      </thead>
+      <tbody id="company-rows" class="divide-y divide-border"
+             hx-get="{% url 'core:company_list' %}" hx-trigger="companiesChanged from:body" hx-include="#search">
+        {% include "core/companies/_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

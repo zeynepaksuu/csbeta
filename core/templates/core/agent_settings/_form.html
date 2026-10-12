@@ -1,0 +1,26 @@
+<form id="settings-form" class="card space-y-6"
+      hx-post="{% url 'core:agent_settings' %}" hx-target="this" hx-swap="outerHTML"
+      hx-disabled-elt="find button[type=submit]">
+  {% for field in form %}
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <label for="{{ field.id_for_label }}" class="text-xs font-medium text-slate-300">{{ field.label }}</label>
+        <button type="button" class="text-[11px] text-slate-400 hover:text-slate-100"
+                hx-post="{% url 'core:agent_settings_reset' %}" hx-target="#settings-form" hx-swap="outerHTML"
+                hx-confirm="System prompt varsayılan haline dönsün mü? Kayıtlı metin silinir.">Varsayılana dön</button>
+      </div>
+      {{ field }}
+      {% if field.help_text %}<p class="text-[11px] text-slate-500 mt-1">{{ field.help_text }}</p>{% endif %}
+      {% for error in field.errors %}<p class="text-[11px] text-rose-400 mt-1">{{ error }}</p>{% endfor %}
+    </div>
+  {% endfor %}
+
+  <div class="rounded-lg bg-slate-900 border border-border p-3 text-[11px] text-slate-400 space-y-1">
+    <div>Tek prompt bu: bütün sorular bununla başlar. Düz metin olarak istediğini yazabilirsin.</div>
+    <div>Chat'te firma seçilmişse sonuna o firmanın bilgileri (iletişim, açıklama, bilgi bankası) ve firma talimatları otomatik eklenir.</div>
+  </div>
+
+  <div class="flex justify-end pt-2 border-t border-border">
+    <button type="submit" class="btn-primary">Kaydet</button>
+  </div>
+</form>

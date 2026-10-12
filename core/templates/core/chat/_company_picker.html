@@ -1,0 +1,13 @@
+{% if session %}
+  <input type="hidden" name="session" value="{{ session.pk }}">
+  <div class="input !bg-slate-900/40 text-slate-400 truncate" title="Firma sohbet başlarken seçilir">
+    {{ session.company.name|default:"Firmasız" }}
+  </div>
+{% else %}
+  <select name="company" class="input">
+    <option value="">Firmasız</option>
+    {% for company in companies %}
+      <option value="{{ company.pk }}" {% if selected == company.pk|stringformat:"d" %}selected{% endif %}>{{ company.name }}</option>
+    {% endfor %}
+  </select>
+{% endif %}

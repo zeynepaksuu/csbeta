@@ -1,0 +1,12 @@
+{% for job in jobs %}
+<tr class="hover:bg-slate-800/40 font-mono text-[11px]">
+  <td class="py-2.5 px-3 text-slate-400 font-bold">#{{ job.id }}</td>
+  <td class="py-2.5 px-3"><span class="badge badge-{{ job.status }}">{{ job.status }}</span></td>
+  <td class="py-2.5 px-3 text-slate-400">{{ job.queue_name }}</td>
+  <td class="py-2.5 px-3 text-blue-300">{{ job.task_name }}</td>
+  <td class="py-2.5 px-3 text-slate-400">{{ job.attempts }}</td>
+  <td class="py-2.5 px-3 text-slate-400 truncate max-w-[200px]">{{ job.args }}</td>
+</tr>
+{% empty %}
+<tr><td colspan="6" class="py-4 text-center text-slate-500">procrastinate_jobs tablosunda iş yok.</td></tr>
+{% endfor %}

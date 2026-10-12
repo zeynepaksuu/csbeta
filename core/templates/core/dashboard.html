@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Claude Agent SDK &bull; Procrastinate &bull; Centrifugo &bull; PostgreSQL{% endblock %}
+{% block header_actions %}
+  <button class="btn" hx-get="{% url 'core:company_create' %}" hx-target="#modal">+ Firma ekle</button>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="card">
+    <div class="text-xs text-slate-400">Firmalar</div>
+    <div class="text-2xl font-bold mt-1">{{ company_count }}</div>
+    <div class="text-[11px] text-slate-500 mt-1">{{ active_company_count }} aktif</div>
+  </div>
+  <div class="card">
+    <div class="text-xs text-slate-400">Toplam soru</div>
+    <div class="text-2xl font-bold mt-1">{{ task_count }}</div>
+  </div>
+  <div class="card">
+    <div class="text-xs text-slate-400">Tamamlanan</div>
+    <div class="text-2xl font-bold mt-1 text-emerald-400">{{ status_counts.completed|default:0 }}</div>
+  </div>
+  <div class="card">
+    <div class="text-xs text-slate-400">Hatalı</div>
+    <div class="text-2xl font-bold mt-1 text-rose-400">{{ status_counts.failed|default:0 }}</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <div class="lg:col-span-7 space-y-6">
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="card-title">Son sorular</h2>
+        <a href="{% url 'core:chat' %}" class="text-xs text-blue-400 hover:text-blue-300">Agent'a sor &rarr;</a>
+      </div>
+      <div id="recent-tasks" class="divide-y divide-border"
+           hx-get="{% url 'core:dashboard' %}" hx-trigger="refreshJobs from:body throttle:2s"
+           hx-select="#recent-tasks" hx-swap="outerHTML" hx-disinherit="*">
+        {% for task in recent_tasks %}
+          <div class="py-2.5 px-2 -mx-2 rounded-lg flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-800/50"
+               hx-get="{% url 'core:task_detail' task.task_id %}" hx-target="#modal">
+            <div class="min-w-0">
+              <div class="text-sm text-slate-200 truncate">{{ task.prompt }}</div>
+              {% if task.result %}<div class="text-xs text-slate-400 truncate mt-0.5">{{ task.result|truncatechars:140 }}</div>{% endif %}
+              <div class="text-[11px] text-slate-500 mt-0.5">
+                {% if task.company %}<span class="text-blue-400">{{ task.company.name }}</span>{% else %}Genel{% endif %}
+                &bull; {{ task.created_at|timesince }} önce
+              </div>
+            </div>
+            <span class="badge badge-{{ task.status }} shrink-0">{{ task.get_status_display }}</span>
+          </div>
+        {% empty %}
+          <div class="py-6 text-center text-sm text-slate-500">Henüz soru sorulmadı.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="card-title">Procrastinate işleri</h2>
+        <span class="text-xs text-slate-500 font-mono">procrastinate_jobs</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-border text-slate-400">
+              <th class="py-2 px-3">Job ID</th>
+              <th class="py-2 px-3">Durum</th>
+              <th class="py-2 px-3">Kuyruk</th>
+              <th class="py-2 px-3">Task</th>
+              <th class="py-2 px-3">Deneme</th>
+              <th class="py-2 px-3">Args</th>
+            </tr>
+          </thead>
+          <tbody id="jobs-tbody" class="divide-y divide-border text-slate-300"
+                 hx-get="{% url 'core:jobs_partial' %}" hx-trigger="load, every 5s, refreshJobs from:body">
+            <tr><td colspan="6" class="py-4 text-center text-slate-500">Yükleniyor...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="lg:col-span-5 space-y-6">
+    <div class="card">
+      <h2 class="card-title mb-3">En çok sorulan firmalar</h2>
+      <div class="space-y-2">
+        {% for company in top_companies %}
+          <a href="{% url 'core:company_detail' company.pk %}" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800/50">
+            <span class="text-sm">{{ company.name }}</span>
+            <span class="text-xs text-slate-400">{{ company.task_total }} soru</span>
+          </a>
+        {% empty %}
+          <div class="py-4 text-center text-sm text-slate-500">
+            Henüz firma yok.
+            <button class="text-blue-400 hover:underline" hx-get="{% url 'core:company_create' %}" hx-target="#modal">İlk firmayı ekle</button>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="card-title">Canlı olay akışı</h2>
+        <span class="text-xs text-slate-500 font-mono">public:stream</span>
+      </div>
+      <div id="events-log" class="bg-slate-900 border border-border rounded-lg p-3 h-80 overflow-y-auto space-y-2 font-mono text-xs">
+        <div class="placeholder text-slate-500 text-center py-6">Henüz olay yok.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const eventsLog = document.getElementById("events-log");
+  const publicSub = centrifuge.newSubscription("public:stream");
+  publicSub.on("publication", ctx => {
+    eventsLog.querySelector(".placeholder")?.remove();
+    const entry = document.createElement("div");
+    entry.className = "p-2 rounded bg-slate-950/60 border border-slate-800 text-[11px] leading-relaxed break-all";
+    const time = new Date().toLocaleTimeString();
+    entry.innerHTML = `<span class="text-slate-500">[${time}]</span> <span class="text-blue-400 font-semibold">&lt;${escapeHtml(ctx.data.event)}&gt;</span> <span class="text-slate-300">${escapeHtml(JSON.stringify(ctx.data.payload))}</span>`;
+    eventsLog.prepend(entry);
+    htmx.trigger(document.body, "refreshJobs");
+  });
+  publicSub.subscribe();
+</script>
+{% endblock %}

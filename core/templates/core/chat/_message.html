@@ -1,0 +1,33 @@
+<div class="flex justify-end">
+  <div class="max-w-[80%] bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-br-sm px-4 py-2.5">
+    <div class="text-[11px] text-blue-300 mb-1">{{ task.company.name|default:"Genel asistan" }}</div>
+    <div class="text-sm text-slate-100 whitespace-pre-wrap">{{ task.prompt }}</div>
+  </div>
+</div>
+
+<div class="flex justify-start" data-task-id="{{ task.task_id }}" data-status="{{ task.status }}">
+  <div class="max-w-[85%] w-full bg-slate-900 border border-border rounded-2xl rounded-bl-sm px-4 py-3">
+    <div class="flex items-center justify-between gap-3 mb-2">
+      <span class="text-[11px] text-slate-500 font-mono">#{{ task.task_id }} &bull; {{ task.created_at|date:"d.m.Y H:i" }}</span>
+      <span class="status badge badge-{{ task.status }}">{{ task.get_status_display }}</span>
+    </div>
+    <div class="steps hidden text-[11px] font-mono text-slate-500 mb-2 space-y-0.5"></div>
+    {% if task.status == "completed" %}
+      <div class="answer prose prose-invert prose-sm max-w-none text-slate-200" data-md="{{ task.result }}"></div>
+    {% elif task.status == "failed" %}
+      <div class="answer text-sm text-rose-300 whitespace-pre-wrap">{{ task.result|default:"Bilinmeyen hata" }}</div>
+    {% else %}
+      <div class="answer prose prose-invert prose-sm max-w-none text-slate-200"></div>
+      <div class="typing flex gap-1 py-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce [animation-delay:150ms]"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce [animation-delay:300ms]"></span>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if is_new_session %}
+<div id="company-picker" hx-swap-oob="innerHTML">{% include "core/chat/_company_picker.html" %}</div>
+<div id="chat-header" hx-swap-oob="innerHTML">{% include "core/chat/_header.html" %}</div>
+{% endif %}

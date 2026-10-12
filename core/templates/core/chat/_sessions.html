@@ -1,0 +1,18 @@
+{% for item in sessions %}
+<div class="group relative" data-session-id="{{ item.pk }}">
+  <a href="{% url 'core:chat_session' item.pk %}"
+     class="block rounded-lg px-3 py-2 pr-8 hover:bg-slate-800/60 group-[.active]:bg-blue-600/15 group-[.active]:border group-[.active]:border-blue-500/30">
+    <div class="text-sm text-slate-200 truncate">{{ item }}</div>
+    <div class="text-[11px] text-slate-500 truncate">
+      {{ item.company.name|default:"Firmasız" }} &bull; {{ item.message_count }} mesaj &bull; {{ item.updated_at|timesince }} önce
+    </div>
+  </a>
+  <button type="button" title="Sohbeti sil"
+          class="absolute right-2 top-2 hidden group-hover:block text-slate-500 hover:text-rose-400 text-sm leading-none"
+          hx-post="{% url 'core:chat_session_delete' item.pk %}" hx-target="closest [data-session-id]" hx-swap="outerHTML"
+          hx-include="#chat-form [name=session]"
+          hx-confirm="&quot;{{ item }}&quot; sohbeti ve tüm mesajları silinsin mi?">&times;</button>
+</div>
+{% empty %}
+<div class="text-xs text-slate-500 text-center py-6">Henüz sohbet yok.</div>
+{% endfor %}

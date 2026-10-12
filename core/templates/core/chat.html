@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{% if session %}{{ session }}{% else %}Agent'a sor{% endif %}{% endblock %}
+{% block page_title %}Agent'a sor{% endblock %}
+{% block page_subtitle %}Her sohbet ayrı tutulur; agent aynı sohbetteki önceki mesajları hatırlar{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <aside class="lg:col-span-3 card p-0 flex flex-col lg:h-[calc(100vh-10rem)] max-h-72 lg:max-h-none">
+    <div class="p-3 border-b border-border">
+      <a href="{% url 'core:chat' %}" class="btn-primary w-full !text-xs">+ Yeni sohbet</a>
+    </div>
+    <div id="session-list" class="flex-1 overflow-y-auto p-2 space-y-1" hx-disinherit="*"
+         hx-get="{% url 'core:chat_sessions' %}" hx-trigger="sessionsChanged from:body">
+      {% include "core/chat/_sessions.html" %}
+    </div>
+  </aside>
+
+  <div class="lg:col-span-9 card flex flex-col h-[calc(100vh-10rem)] p-0">
+    <div id="chat-header" class="px-5 py-3 border-b border-border flex items-center justify-between gap-3 min-h-[3.25rem]">
+      {% include "core/chat/_header.html" %}
+    </div>
+
+    <div id="chat-log" class="flex-1 overflow-y-auto p-5 space-y-5">
+      {% include "core/chat/_history.html" %}
+    </div>
+
+    <form id="chat-form" class="border-t border-border p-4"
+          hx-post="{% url 'core:task_create' %}" hx-target="#chat-log" hx-swap="beforeend"
+          hx-disabled-elt="find button[type=submit]"
+          hx-on::before-request="document.getElementById('chat-empty')?.remove()"
+          hx-on::after-request="if (event.detail.successful) this.querySelector('textarea').value = ''">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div id="company-picker" class="sm:w-64">
+          {% include "core/chat/_company_picker.html" %}
+        </div>
+        <textarea name="prompt" rows="2" required class="input flex-1 resize-none"
+                  placeholder="Sorunu yaz... (Enter gönderir, Shift+Enter yeni satır)"
+                  onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); this.form.requestSubmit(); }"></textarea>
+        <button type="submit" class="btn-primary sm:self-stretch">Gönder</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chatLog = document.getElementById("chat-log");
+  const scrollChat = () => chatLog.scrollTop = chatLog.scrollHeight;
+
+  const STATUS_LABELS = {queued: "Sırada", running: "Çalışıyor", completed: "Tamamlandı", failed: "Hata"};
+
+  function setStatus(el, status) {
+    const badge = el.querySelector(".status");
+    badge.className = `status badge badge-${status}`;
+    badge.textContent = STATUS_LABELS[status] || status;
+  }
+
+  function finish(el, status, text) {
+    if (el.dataset.done) return;
+    el.dataset.done = "1";
+    setStatus(el, status);
+    el.querySelector(".typing")?.remove();
+    const body = el.querySelector(".answer");
+    if (status === "failed") {
+      body.innerHTML = `<span class="text-rose-300">${escapeHtml(text || "Bilinmeyen hata")}</span>`;
+    } else {
+      body.innerHTML = renderMarkdown(text);
+    }
+    scrollChat();
+  }
+
+  function addStep(el, text) {
+    const steps = el.querySelector(".steps");
+    steps.classList.remove("hidden");
+    const item = document.createElement("div");
+    item.textContent = text;
+    steps.appendChild(item);
+  }
+
+  function watchTask(el) {
+    const taskId = el.dataset.taskId;
+    let streamed = "";
+    const sub = centrifuge.newSubscription("tasks:" + taskId);
+
+    sub.on("publication", ctx => {
+      const {event, payload} = ctx.data;
+      if (event === "task_status") {
+        if (payload.status === "completed") finish(el, "completed", payload.result);
+        else if (payload.status === "failed") finish(el, "failed", payload.error);
+        else setStatus(el, payload.status);
+      } else if (event === "agent_chunk") {
+        streamed += (streamed ? "\n\n" : "") + payload.chunk;
+        el.querySelector(".answer").innerHTML = renderMarkdown(streamed);
+      } else if (event === "agent_tool_use") {
+        addStep(el, `🔧 ${payload.tool.replace(/^mcp__[^_]+__/, "")} ${JSON.stringify(payload.input)}`);
+      }
+      if (el.dataset.done) sub.unsubscribe();
+      scrollChat();
+    });
+
+    // Worker abone olmadan önce bitirmiş olabilir: son durumu bir kez sor.
+    sub.on("subscribed", async () => {
+      const res = await fetch(`/tasks/${taskId}/`);
+      if (!res.ok) return;
+      const task = await res.json();
+      if (task.status === "completed" || task.status === "failed") {
+        finish(el, task.status, task.result);
+        sub.unsubscribe();
+      }
+    });
+    sub.subscribe();
+  }
+
+  function highlightCurrentSession() {
+    const current = document.querySelector("#chat-form [name=session]")?.value;
+    document.querySelectorAll("#session-list [data-session-id]").forEach(item => {
+      item.classList.toggle("active", item.dataset.sessionId === current);
+    });
+  }
+
+  htmx.onLoad(root => {
+    if (!root.querySelectorAll) return;
+    const found = [...root.querySelectorAll("[data-task-id]")];
+    if (root.matches("[data-task-id]")) found.push(root);
+    found.forEach(el => {
+      if (el.dataset.watching) return;
+      el.dataset.watching = "1";
+      if (el.dataset.status === "queued" || el.dataset.status === "running") watchTask(el);
+      else el.dataset.done = "1";
+    });
+    highlightCurrentSession();
+    scrollChat();
+  });
+
+  // Yeni sohbet ilk mesajla oluştuğunda liste yenilenir; aktif olanı işaretle.
+  document.body.addEventListener("htmx:afterSettle", highlightCurrentSession);
+</script>
+{% endblock %}

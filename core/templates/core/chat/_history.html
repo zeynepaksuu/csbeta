@@ -1,0 +1,10 @@
+{% for task in history %}
+  {% include "core/chat/_message.html" %}
+{% empty %}
+  <div id="chat-empty" class="h-full flex items-center justify-center text-center text-sm text-slate-500">
+    <div>
+      <div class="text-3xl mb-2">💬</div>
+      Yeni bir sohbet başlat. Agent bu sohbetteki önceki mesajları hatırlayacak.
+    </div>
+  </div>
+{% endfor %}

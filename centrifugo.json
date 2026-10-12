@@ -1,0 +1,37 @@
+{
+  "client": {
+    "token": {
+      "hmac_secret_key": "centrifugo_secret_token"
+    },
+    "allowed_origins": ["http://localhost:8080", "http://127.0.0.1:8080"],
+    "allow_anonymous_connect_without_token": true
+  },
+  "http_api": {
+    "key": "centrifugo_api_key"
+  },
+  "admin": {
+    "enabled": true,
+    "password": "admin",
+    "secret": "secret"
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "tasks",
+        "allow_subscribe_for_client": true,
+        "allow_subscribe_for_anonymous": true,
+        "allow_publish_for_client": false,
+        "history_size": 100,
+        "history_ttl": "300s"
+      },
+      {
+        "name": "public",
+        "allow_subscribe_for_client": true,
+        "allow_subscribe_for_anonymous": true,
+        "allow_publish_for_client": false,
+        "history_size": 100,
+        "history_ttl": "300s"
+      }
+    ]
+  }
+}

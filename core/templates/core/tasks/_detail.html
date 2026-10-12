@@ -1,0 +1,34 @@
+<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 sm:p-10" onclick="if (event.target === this) closeModal()">
+  <div class="w-full max-w-2xl bg-panel border border-border rounded-xl shadow-2xl">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div>
+        <h2 class="font-semibold">{{ task.company.name|default:"Genel asistan" }}</h2>
+        <div class="text-[11px] text-slate-500 font-mono">#{{ task.task_id }} &bull; {{ task.created_at|date:"d.m.Y H:i" }}</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="badge badge-{{ task.status }}">{{ task.get_status_display }}</span>
+        <button type="button" class="text-slate-400 hover:text-slate-100 text-xl leading-none" onclick="closeModal()">&times;</button>
+      </div>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <div class="text-xs font-medium text-slate-400 mb-1">Soru</div>
+        <div class="text-sm text-slate-100 whitespace-pre-wrap bg-blue-600/10 border border-blue-500/20 rounded-lg px-3 py-2">{{ task.prompt }}</div>
+      </div>
+      <div>
+        <div class="text-xs font-medium text-slate-400 mb-1">Cevap</div>
+        {% if task.status == "completed" %}
+          <div class="prose prose-invert prose-sm max-w-none bg-slate-900 border border-border rounded-lg px-4 py-3" data-md="{{ task.result }}"></div>
+        {% elif task.status == "failed" %}
+          <div class="text-sm text-rose-300 bg-rose-950/30 border border-rose-800/50 rounded-lg px-3 py-2 whitespace-pre-wrap">{{ task.result|default:"Bilinmeyen hata" }}</div>
+        {% else %}
+          <div class="text-sm text-slate-500 bg-slate-900 border border-border rounded-lg px-3 py-2">Henüz cevap gelmedi. Worker'ın çalıştığından emin ol.</div>
+        {% endif %}
+      </div>
+      <div class="flex justify-end gap-2">
+        {% if task.company %}<a href="{% url 'core:chat' %}?company={{ task.company.pk }}" class="btn">Bu firmayla yeni sohbet</a>{% endif %}
+        {% if task.session %}<a href="{% url 'core:chat_session' task.session.pk %}" class="btn">Sohbete git &rarr;</a>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
